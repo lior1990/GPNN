@@ -60,7 +60,7 @@ class gpnn:
 
 		# out_file
 		filename = os.path.splitext(os.path.basename(img_path))[0]
-		self.out_file = os.path.join(config['out_dir'], "%s_%s.png" % (filename, config['task']))
+		self.out_folder = os.path.join(config['out_dir'], config['task'], filename)
 
 		# coarse settings
 		if config['task'] == 'random_sample':
@@ -105,7 +105,7 @@ class gpnn:
 					new_keys = False
 		if to_save:
 			print(f"Saving sample {sample_id}")
-			img_save(self.y_pyramid[0], f"{sample_id}_{self.out_file}")
+			img_save(self.y_pyramid[0], os.path.join(self.out_folder, f"{sample_id}.png"))
 		else:
 			return self.y_pyramid[0]
 

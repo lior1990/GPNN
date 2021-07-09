@@ -11,7 +11,6 @@ def img_read(path):
 
 
 def img_save(im, path):
-	dir = os.path.splitext(os.path.dirname(path))[0]
-	if not os.path.isdir(dir):
-		os.mkdir(dir)
+	directory = os.path.dirname(path)
+	os.makedirs(directory, exist_ok=True)
 	imsave(path, img_as_ubyte(im))
