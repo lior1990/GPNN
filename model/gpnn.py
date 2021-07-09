@@ -81,8 +81,10 @@ class gpnn:
 				mask = torch.all(mask, dim=1)
 				self.mask_pyramid[i] = mask
 
-	def run(self, to_save=True):
+	def run(self, sample_id, to_save=True):
+		print(f"Working on sample: {sample_id}")
 		for i in reversed(range(len(self.x_pyramid))):
+			print(f"Working on scale: {i}")
 			if i == len(self.x_pyramid) - 1:
 				queries = self.coarse_img
 				keys = self.x_pyramid[i]
@@ -102,7 +104,8 @@ class gpnn:
 				if j > 1:
 					new_keys = False
 		if to_save:
-			img_save(self.y_pyramid[0], self.out_file)
+			print(f"Saving sample {sample_id}")
+			img_save(self.y_pyramid[0], f"{sample_id}_{self.out_file}")
 		else:
 			return self.y_pyramid[0]
 

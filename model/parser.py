@@ -16,6 +16,7 @@ def parser_sample(parser):
 	parser.add_argument('--sigma', type=float, default=0.75, required=False, help='noise level to adjust the variatonality of the new sample. default is 0.75 (float)')
 	parser.add_argument('--alpha', type=float, default=0.005, required=False, help='alpha parameter of the normalizing distance matrix. small alpha encourages completeness. default is 0.005 (float)')
 	parser.add_argument('--task', type=str, default='random_sample')
+	parser.add_argument('--n_samples', type=int, default=10)
 	return parser
 
 

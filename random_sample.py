@@ -7,5 +7,7 @@ if __name__ == '__main__':
 	parser = parser_general(parser)
 	parser = parser_sample(parser)
 	config = vars(parser.parse_args())
-	model = gpnn(config)
-	model.run()
+	for i in range(config["n_samples"]):
+		model = gpnn(config)
+		model.run(i)
+	print("Done")
