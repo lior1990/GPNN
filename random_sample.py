@@ -1,4 +1,7 @@
 import argparse
+import os
+import glob
+
 from model.gpnn import gpnn
 from model.parser import *
 
@@ -7,7 +10,18 @@ if __name__ == '__main__':
 	parser = parser_general(parser)
 	parser = parser_sample(parser)
 	config = vars(parser.parse_args())
-	for i in range(config["n_samples"]):
-		model = gpnn(config)
-		model.run(i)
+
+	imgs = []
+	if os.path.isdir(config["input_img"]):
+		imgs = glob.glob(f"{config['input_img']}/*.jpg", recursive=True)
+	else:
+		imgs = [config["input_img"]]
+
+	for img in imgs:
+		config["input_img"] = img
+		print(f"Working on img {img}")
+		for i in range(config["n_samples"]):
+			model = gpnn(config)
+			model.run(i)
+
 	print("Done")
