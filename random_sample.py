@@ -1,6 +1,8 @@
 import argparse
 import os
 import glob
+from pathlib import Path
+
 
 from model.gpnn import gpnn
 from model.parser import *
@@ -20,7 +22,7 @@ if __name__ == '__main__':
 	for img in imgs:
 		config["input_img"] = img
 		print(f"Working on img {img}")
-		img_name = os.path.basename(img)
+		img_name = Path(img).stem
 		for i in range(config["n_samples"]):
 			model = gpnn(config)
 			model.run(f"{img_name}_{i}")
