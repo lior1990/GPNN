@@ -20,8 +20,9 @@ if __name__ == '__main__':
 	for img in imgs:
 		config["input_img"] = img
 		print(f"Working on img {img}")
+		img_name = os.path.basename(img)
 		for i in range(config["n_samples"]):
 			model = gpnn(config)
-			model.run(i)
+			model.run(f"{img_name}_{i}")
 
 	print("Done")
