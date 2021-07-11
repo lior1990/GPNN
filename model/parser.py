@@ -20,6 +20,16 @@ def parser_sample(parser):
 	return parser
 
 
+def parser_mix(parser):
+	parser.add_argument('-in', '--input_img', type=str, required=True, help='path of input image')
+	parser.add_argument('-ind', '--input_dir', type=str, required=True, help='path of input images')
+	parser.add_argument('--sigma', type=float, default=0.75, required=False, help='noise level to adjust the variatonality of the new sample. default is 0.75 (float)')
+	parser.add_argument('--alpha', type=float, default=0.005, required=False, help='alpha parameter of the normalizing distance matrix. small alpha encourages completeness. default is 0.005 (float)')
+	parser.add_argument('--task', type=str, default='mix')
+	parser.add_argument('--n_samples', type=int, default=10)
+	return parser
+
+
 def parser_analogies(parser):
 	parser.add_argument('-a', '--img_a', type=str, required=True, help='path of image A - the content')
 	parser.add_argument('-b', '--img_b', type=str, required=True, help='path of image B - the structure')
