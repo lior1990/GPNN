@@ -19,11 +19,11 @@ if __name__ == '__main__':
 	else:
 		imgs = [config["input_img"]]
 
-	for img in imgs:
-		config["input_img"] = img
-		print(f"Working on img {img}")
-		img_name = Path(img).stem
-		for i in range(config["n_samples"]):
+	for i in range(config["n_samples"]):
+		for img in imgs:
+			config["input_img"] = img
+			print(f"Working on img {img}")
+			img_name = Path(img).stem
 			model = gpnn(config)
 			model.run(f"{img_name}_{i}")
 
