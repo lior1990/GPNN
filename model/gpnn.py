@@ -54,8 +54,8 @@ class gpnn:
 		pyramid_depth = int(np.ceil(pyramid_depth))
 		self.x_pyramid = list(
 			tuple(pyramid_gaussian(self.input_img, pyramid_depth, downscale=self.R, multichannel=True)))
-		if self.add_base_level is True:
-			self.x_pyramid[-1] = resize(self.x_pyramid[-2], self.COARSE_DIM)
+		# if self.add_base_level is True:
+		# 	self.x_pyramid[-1] = resize(self.x_pyramid[-2], self.COARSE_DIM)
 		self.y_pyramid = [0] * (pyramid_depth + 1)
 
 		# out_file
@@ -64,7 +64,7 @@ class gpnn:
 
 		# coarse settings
 		if config['task'] == 'random_sample':
-			noise = np.random.normal(0, config['sigma'], self.COARSE_DIM)[..., np.newaxis]
+			noise = np.random.normal(0, config['sigma'], self.x_pyramid[-1].shape[:2])[..., np.newaxis]
 			self.coarse_img = self.x_pyramid[-1] + noise
 		elif config['task'] == 'structural_analogies':
 			self.coarse_img = img_read(config['img_b'])
