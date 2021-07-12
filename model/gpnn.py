@@ -7,7 +7,7 @@ from .utils import *
 
 
 class gpnn:
-	def __init__(self, config):
+	def __init__(self, config, hflip=False):
 		# general settings
 		self.T = config['iters']
 		self.PATCH_SIZE = (config['patch_size'], config['patch_size'])
@@ -44,6 +44,8 @@ class gpnn:
 		else:
 			img_path = config['input_img']
 		self.input_img = img_read(img_path)
+		if hflip:
+			self.input_img = np.fliplr(self.input_img)
 		if config['out_size'] != 0:
 			if self.input_img.shape[0] > config['out_size']:
 				self.input_img = rescale(self.input_img, config['out_size'] / self.input_img.shape[0], multichannel=True)

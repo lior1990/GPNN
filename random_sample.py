@@ -2,7 +2,7 @@ import argparse
 import os
 import glob
 from pathlib import Path
-
+from random import random
 
 from model.gpnn import gpnn
 from model.parser import *
@@ -21,10 +21,11 @@ if __name__ == '__main__':
 
 	for i in range(config["n_samples"]):
 		for img in imgs:
+			hflip = random > 0.5
 			config["input_img"] = img
 			print(f"Working on img {img}")
 			img_name = Path(img).stem
-			model = gpnn(config)
+			model = gpnn(config, hflip=hflip)
 			model.run(f"{img_name}_{i}")
 
 	print("Done")
