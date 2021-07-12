@@ -21,7 +21,7 @@ if __name__ == '__main__':
 
 	for i in range(config["n_samples"]):
 		for img in imgs:
-			hflip = random > 0.5
+			hflip = random() > 0.5
 			config["input_img"] = img
 			print(f"Working on img {img}")
 			img_name = Path(img).stem
