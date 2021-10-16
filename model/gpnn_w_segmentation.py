@@ -4,6 +4,7 @@ from skimage.transform.pyramids import pyramid_gaussian
 from skimage.transform import rescale, resize
 from torch.nn.functional import fold, unfold
 from .utils import *
+import cv2
 
 
 class GPNN_w_Segmentation:
@@ -52,8 +53,6 @@ class GPNN_w_Segmentation:
 		pyramid_depth = int(np.ceil(pyramid_depth))
 		self.x_pyramid = list(
 			tuple(pyramid_gaussian(self.input_img, pyramid_depth, downscale=self.R, multichannel=True)))
-		self.x_label_pyramid = list(
-			tuple(pyramid_gaussian(self.input_label, pyramid_depth, downscale=self.R, multichannel=False)))
 
 		self.y_pyramid = [0] * (pyramid_depth + 1)
 		self.y_label_pyramid = [0] * (pyramid_depth + 1)
@@ -77,15 +76,20 @@ class GPNN_w_Segmentation:
 				queries = resize(self.y_pyramid[i + 1], self.x_pyramid[i].shape)
 				keys = resize(self.x_pyramid[i + 1], self.x_pyramid[i].shape)
 
+			label_pyramid_i = cv2.resize(self.input_label, self.x_pyramid[i].shape[:2], interpolation=cv2.INTER_NEAREST)
+			label_pyramid_i = label_pyramid_i[:, :, np.newaxis].astype(float)
+
 			for j in range(self.T):
-				self.y_pyramid[i], self.y_label_pyramid[i] = self.PNN(self.x_pyramid[i], self.x_label_pyramid[i], keys, queries, self.PATCH_SIZE, self.STRIDE, self.ALPHA)
+				self.y_pyramid[i], self.y_label_pyramid[i] = self.PNN(self.x_pyramid[i], label_pyramid_i, keys, queries, self.PATCH_SIZE, self.STRIDE, self.ALPHA)
 				queries = self.y_pyramid[i]
 				keys = self.x_pyramid[i]
 
 			if to_save:
 				print(f"Saving sample {sample_id}")
 				img_save(self.y_pyramid[i], os.path.join(self.out_folder, f"{sample_id}_scale{i}.png"))
-				label_save(self.y_label_pyramid[i], os.path.join(self.out_folder, f"{sample_id}_label_scale{i}.png"))
+				self.y_label_pyramid[i] = self.y_label_pyramid[i].astype(np.uint8)
+				img_save(self.y_label_pyramid[i].astype(np.uint8), os.path.join(self.out_folder, f"{sample_id}_label_scale{i}.png"))
+				label_save(self.y_label_pyramid[i], os.path.join(self.out_folder, f"{sample_id}_label_rgb_scale{i}.png"))
 			else:
 				return (self.y_pyramid[i], self.y_label_pyramid[i])
 
