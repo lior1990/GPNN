@@ -14,6 +14,7 @@ class GPNN_w_Segmentation:
 		self.PATCH_SIZE = (config['patch_size'], config['patch_size'])
 		self.COARSE_DIM = (config['coarse_dim'], config['coarse_dim'])
 		self.STRIDE = (config['stride'], config['stride'])
+		self.LABEL_PATCH_SIZE = (config['label_patch_size'], config['label_patch_size'])
 		self.R = config['pyramid_ratio']
 		self.ALPHA = config['alpha']
 
@@ -91,8 +92,8 @@ class GPNN_w_Segmentation:
 		del self.x_pyramid
 		generated_img = self.y_pyramid[0]
 		del self.y_pyramid
-		patch_size = (4, 4)
-		stride = (4, 4)
+		patch_size = self.LABEL_PATCH_SIZE
+		stride = self.LABEL_PATCH_SIZE
 		queries = extract_patches(self.input_img, patch_size, stride)
 		keys = extract_patches(generated_img, patch_size, stride)
 		labels = extract_patches(self.input_label.astype(float), patch_size, stride, channels=1)
