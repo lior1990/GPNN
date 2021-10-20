@@ -27,14 +27,6 @@ class GPNN_w_Segmentation:
 			if torch.cuda.is_available():
 				print('cuda initialized!')
 
-		# faiss init
-		self.is_faiss = config['faiss']
-		if self.is_faiss:
-			global faiss, res
-			import faiss
-			res = faiss.StandardGpuResources()
-			print('faiss initialized!')
-
 		# input image
 		img_path = config['input_img']
 		label_path = config['input_img'].replace(".jpg", ".png")
@@ -78,7 +70,7 @@ class GPNN_w_Segmentation:
 				keys = resize(self.x_pyramid[i + 1], self.x_pyramid[i].shape)
 
 			for j in range(self.T):
-				self.y_pyramid[i] = self.PNN(self.x_pyramid[i], keys, queries, self.PATCH_SIZE, self.STRIDE, self.ALPHA)
+				self.y_pyramid[i] = self.PNN(self.x_pyramid[i], keys, queries, self.PATCH_SIZE, self.STRIDE, self.ALPHA, gpu=i>0)
 				queries = self.y_pyramid[i]
 				keys = self.x_pyramid[i]
 
@@ -97,7 +89,7 @@ class GPNN_w_Segmentation:
 		queries = extract_patches(self.input_img, patch_size, stride)
 		keys = extract_patches(generated_img, patch_size, stride)
 		labels = extract_patches(self.input_label.astype(float), patch_size, stride, channels=1)
-		dist = compute_distances(queries, keys)
+		dist = compute_distances(queries, keys, gpu=False)
 		# norm_dist = (dist / (torch.min(dist, dim=0)[0] + alpha))  # compute_normalized_scores
 		NNs = torch.argmin(dist, dim=1)  # find_NNs
 		labels = labels[NNs]
@@ -108,37 +100,14 @@ class GPNN_w_Segmentation:
 		new_unique_labels = np.unique(new_label)
 		assert set(new_unique_labels).issubset(self.unique_labels), f"labels: {self.unique_labels} vs new unique labels: {new_unique_labels}"
 
-	def PNN(self, x, x_scaled, y_scaled, patch_size, stride, alpha):
+	def PNN(self, x, x_scaled, y_scaled, patch_size, stride, alpha, gpu=True):
 		queries = extract_patches(y_scaled, patch_size, stride)
 		keys = extract_patches(x_scaled, patch_size, stride)
 		values = extract_patches(x, patch_size, stride)
-		dist = compute_distances(queries, keys)
-		norm_dist = (dist / (torch.min(dist, dim=0)[0] + alpha))  # compute_normalized_scores
-		NNs = torch.argmin(norm_dist, dim=1)  # find_NNs
+		dist = compute_distances(queries, keys, gpu=gpu)
+		dist = (dist / (torch.min(dist, dim=0)[0] + alpha))  # compute_normalized_scores
+		NNs = torch.argmin(dist, dim=1)  # find_NNs
 		values = values[NNs]
-		y = combine_patches(values, patch_size, stride, x_scaled.shape)
-		return y
-
-	def PNN_faiss(self, x, x_scaled, y_scaled, patch_size, stride, alpha, mask=None, new_keys=True):
-		queries = extract_patches(y_scaled, patch_size, stride)
-		keys = extract_patches(x_scaled, patch_size, stride)
-		values = extract_patches(x, patch_size, stride)
-		if mask is not None:
-			queries = queries[mask]
-			keys = keys[~mask]
-		queries_flat = np.ascontiguousarray(queries.reshape((queries.shape[0], -1)).cpu().numpy(), dtype='float32')
-		keys_flat = np.ascontiguousarray(keys.reshape((keys.shape[0], -1)).cpu().numpy(), dtype='float32')
-
-		if new_keys:
-			self.index = faiss.IndexFlatL2(keys_flat.shape[-1])
-			self.index = faiss.index_cpu_to_gpu(res, 0, self.index)
-			self.index.add(keys_flat)
-		D, I = self.index.search(queries_flat, 1)
-		if mask is not None:
-			values[mask] = values[~mask][I.T]
-		else:
-			values = values[I.T]
-			#O = values[I.T]
 		y = combine_patches(values, patch_size, stride, x_scaled.shape)
 		return y
 
@@ -149,10 +118,16 @@ def extract_patches(src_img, patch_size, stride, channels=3):
 		.squeeze(dim=0).permute((1, 0)).reshape(-1, channels, patch_size[0], patch_size[1])
 
 
-def compute_distances(queries, keys):
-	dist_mat = torch.zeros((queries.shape[0], keys.shape[0]), dtype=torch.float16, device=device)
-	for i in range(len(queries)):
-		dist_mat[i] = torch.mean((queries[i] - keys) ** 2, dim=(1, 2, 3))
+def compute_distances(queries, keys, gpu=True):
+	if gpu:
+		dist_mat = torch.zeros((queries.shape[0], keys.shape[0]), dtype=torch.float32, device=device)
+		for i in range(len(queries)):
+			dist_mat[i] = torch.mean((queries[i] - keys) ** 2, dim=(1, 2, 3))
+	else:
+		dist_mat = torch.zeros((queries.shape[0], keys.shape[0]), dtype=torch.float32)
+		for i in range(len(queries)):
+			dist_mat[i] = torch.mean((queries[i] - keys) ** 2, dim=(1, 2, 3)).cpu()
+
 	return dist_mat
 
 
