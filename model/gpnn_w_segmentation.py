@@ -39,13 +39,14 @@ class GPNN_w_Segmentation:
 		label_path = config['input_img'].replace(".jpg", ".png")
 		self.input_img = img_read(img_path)
 		self.input_label = img_read(label_path, is_label=True)
+		self.unique_labels = np.unique(self.input_label)
 		self.input_label = self.input_label[:, :, np.newaxis]
 		assert self.input_img.shape[:2] == self.input_label.shape[:2]
 
 		if config['out_size'] != 0:
 			if self.input_img.shape[0] > config['out_size']:
 				self.input_img = rescale(self.input_img, config['out_size'] / self.input_img.shape[0], multichannel=True)
-				self.input_label = rescale(self.input_label, config['out_size'] / self.input_label.shape[0], multichannel=False)
+				self.input_label = cv2.resize(self.input_label, (config['out_size'], config['out_size']), interpolation=cv2.INTER_NEAREST)[:, :, np.newaxis]
 
 		# pyramids
 		pyramid_depth = np.log(min(self.input_img.shape[:2]) / min(self.COARSE_DIM)) / np.log(self.R)
@@ -55,7 +56,6 @@ class GPNN_w_Segmentation:
 			tuple(pyramid_gaussian(self.input_img, pyramid_depth, downscale=self.R, multichannel=True)))
 
 		self.y_pyramid = [0] * (pyramid_depth + 1)
-		self.y_label_pyramid = [0] * (pyramid_depth + 1)
 
 		# out_file
 		filename = os.path.splitext(os.path.basename(img_path))[0]
@@ -76,36 +76,47 @@ class GPNN_w_Segmentation:
 				queries = resize(self.y_pyramid[i + 1], self.x_pyramid[i].shape)
 				keys = resize(self.x_pyramid[i + 1], self.x_pyramid[i].shape)
 
-			label_pyramid_i = cv2.resize(self.input_label, self.x_pyramid[i].shape[:2], interpolation=cv2.INTER_NEAREST)
-			label_pyramid_i = label_pyramid_i[:, :, np.newaxis].astype(float)
-
 			for j in range(self.T):
-				self.y_pyramid[i], self.y_label_pyramid[i] = self.PNN(self.x_pyramid[i], label_pyramid_i, keys, queries, self.PATCH_SIZE, self.STRIDE, self.ALPHA)
+				self.y_pyramid[i] = self.PNN(self.x_pyramid[i], keys, queries, self.PATCH_SIZE, self.STRIDE, self.ALPHA)
 				queries = self.y_pyramid[i]
 				keys = self.x_pyramid[i]
 
-			if to_save:
-				print(f"Saving sample {sample_id}")
-				img_save(self.y_pyramid[i], os.path.join(self.out_folder, f"{sample_id}_scale{i}.png"))
-				self.y_label_pyramid[i] = self.y_label_pyramid[i].astype(np.uint8)
-				img_save(self.y_label_pyramid[i].astype(np.uint8), os.path.join(self.out_folder, f"{sample_id}_label_scale{i}.png"))
-				label_save(self.y_label_pyramid[i], os.path.join(self.out_folder, f"{sample_id}_label_rgb_scale{i}.png"))
-			else:
-				return (self.y_pyramid[i], self.y_label_pyramid[i])
+		if to_save:
+			print(f"Saving sample {sample_id}")
+			img_save(self.y_pyramid[0], os.path.join(self.out_folder, f"{sample_id}.png"))
+		else:
+			return self.y_pyramid[0]
 
-	def PNN(self, x, label, x_scaled, y_scaled, patch_size, stride, alpha):
+		# free some memory
+		del self.x_pyramid
+		generated_img = self.y_pyramid[0]
+		del self.y_pyramid
+		patch_size = (4, 4)
+		stride = (4, 4)
+		queries = extract_patches(self.input_img, patch_size, stride)
+		keys = extract_patches(generated_img, patch_size, stride)
+		labels = extract_patches(self.input_label.astype(float), patch_size, stride, channels=1)
+		dist = compute_distances(queries, keys)
+		# norm_dist = (dist / (torch.min(dist, dim=0)[0] + alpha))  # compute_normalized_scores
+		NNs = torch.argmin(dist, dim=1)  # find_NNs
+		labels = labels[NNs]
+		new_label = combine_patches(labels, patch_size, stride, self.input_label.shape, channels=1)
+		new_label = new_label.astype(np.uint8)
+		img_save(new_label, os.path.join(self.out_folder, f"{sample_id}_label.png"))
+		label_save(new_label, os.path.join(self.out_folder, f"{sample_id}_label_rgb.png"))
+		new_unique_labels = np.unique(new_label)
+		assert set(new_unique_labels).issubset(self.unique_labels), f"labels: {self.unique_labels} vs new unique labels: {new_unique_labels}"
+
+	def PNN(self, x, x_scaled, y_scaled, patch_size, stride, alpha):
 		queries = extract_patches(y_scaled, patch_size, stride)
 		keys = extract_patches(x_scaled, patch_size, stride)
 		values = extract_patches(x, patch_size, stride)
-		label_values = extract_patches(label, patch_size, stride, channels=1)
 		dist = compute_distances(queries, keys)
 		norm_dist = (dist / (torch.min(dist, dim=0)[0] + alpha))  # compute_normalized_scores
 		NNs = torch.argmin(norm_dist, dim=1)  # find_NNs
 		values = values[NNs]
-		label_values = label_values[NNs]
 		y = combine_patches(values, patch_size, stride, x_scaled.shape)
-		y_label = combine_patches(label_values, patch_size, stride, label.shape, channels=1)
-		return y, y_label
+		return y
 
 	def PNN_faiss(self, x, x_scaled, y_scaled, patch_size, stride, alpha, mask=None, new_keys=True):
 		queries = extract_patches(y_scaled, patch_size, stride)
