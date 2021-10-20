@@ -138,7 +138,7 @@ def extract_patches(src_img, patch_size, stride, channels=3):
 
 
 def compute_distances(queries, keys):
-	dist_mat = torch.zeros((queries.shape[0], keys.shape[0]), dtype=torch.float32, device=device)
+	dist_mat = torch.zeros((queries.shape[0], keys.shape[0]), dtype=torch.float16, device=device)
 	for i in range(len(queries)):
 		dist_mat[i] = torch.mean((queries[i] - keys) ** 2, dim=(1, 2, 3))
 	return dist_mat
