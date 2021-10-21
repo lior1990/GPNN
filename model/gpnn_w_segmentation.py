@@ -86,10 +86,10 @@ class GPNN_w_Segmentation:
 		del self.y_pyramid
 		patch_size = self.LABEL_PATCH_SIZE
 		stride = self.LABEL_PATCH_SIZE
-		queries = extract_patches(generated_img, patch_size, stride)
-		keys = extract_patches(self.input_img.astype(float), patch_size, stride)
+		queries = extract_patches(self.input_img.astype(float), patch_size, stride)
+		keys = extract_patches(generated_img, patch_size, stride)
 		labels = extract_patches(self.input_label.astype(float), patch_size, stride, channels=1)
-		dist = compute_distances(queries, keys, gpu=False)
+		dist = compute_distances_l1(queries, keys)
 		# norm_dist = (dist / (torch.min(dist, dim=0)[0] + alpha))  # compute_normalized_scores
 		NNs = torch.argmin(dist, dim=1)  # find_NNs
 		labels = labels[NNs]
@@ -129,6 +129,14 @@ def compute_distances(queries, keys, gpu=True):
 		dist_mat = torch.zeros((queries.shape[0], keys.shape[0]), dtype=torch.float32)
 		for i in range(len(queries)):
 			dist_mat[i] = torch.mean((queries[i] - keys) ** 2, dim=(1, 2, 3)).cpu()
+
+	return dist_mat
+
+
+def compute_distances_l1(queries, keys):
+	dist_mat = torch.zeros((queries.shape[0], keys.shape[0]), dtype=torch.float32)
+	for i in range(len(queries)):
+		dist_mat[i] = torch.mean((queries[i] - keys), dim=(1, 2, 3)).cpu()
 
 	return dist_mat
 
