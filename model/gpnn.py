@@ -100,7 +100,7 @@ class gpnn:
 													   self.ALPHA, mask=None, new_keys=new_keys)
 				else:
 					self.y_pyramid[i] = self.PNN(self.x_pyramid[i], keys, queries, self.PATCH_SIZE, self.STRIDE,
-												 self.ALPHA)
+												 self.ALPHA, gpu=i>0)
 				queries = self.y_pyramid[i]
 				keys = self.x_pyramid[i]
 				if j > 1:
@@ -111,12 +111,12 @@ class gpnn:
 		else:
 			return self.y_pyramid[0]
 
-	def PNN(self, x, x_scaled, y_scaled, patch_size, stride, alpha, mask=None):
+	def PNN(self, x, x_scaled, y_scaled, patch_size, stride, alpha, mask=None, gpu=True):
 		queries = extract_patches(y_scaled, patch_size, stride)
 		keys = extract_patches(x_scaled, patch_size, stride)
 		values = extract_patches(x, patch_size, stride)
 		if mask is None:
-			dist = compute_distances(queries, keys)
+			dist = compute_distances(queries, keys, gpu=gpu)
 		else:
 			dist = compute_distances(queries[mask], keys[~mask])
 		norm_dist = (dist / (torch.min(dist, dim=0)[0] + alpha))  # compute_normalized_scores
@@ -160,10 +160,16 @@ def extract_patches(src_img, patch_size, stride):
 		.squeeze(dim=0).permute((1, 0)).reshape(-1, channels, patch_size[0], patch_size[1])
 
 
-def compute_distances(queries, keys):
-	dist_mat = torch.zeros((queries.shape[0], keys.shape[0]), dtype=torch.float16, device=device)
-	for i in range(len(queries)):
-		dist_mat[i] = torch.mean((queries[i] - keys) ** 2, dim=(1, 2, 3))
+def compute_distances(queries, keys, gpu=True):
+	if gpu:
+		dist_mat = torch.zeros((queries.shape[0], keys.shape[0]), dtype=torch.float16, device=device)
+		for i in range(len(queries)):
+			dist_mat[i] = torch.mean((queries[i] - keys) ** 2, dim=(1, 2, 3))
+	else:
+		dist_mat = torch.zeros((queries.shape[0], keys.shape[0]), dtype=torch.float32)
+		for i in range(len(queries)):
+			dist_mat[i] = torch.mean((queries[i] - keys) ** 2, dim=(1, 2, 3)).cpu()
+
 	return dist_mat
 
 
