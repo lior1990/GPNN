@@ -1,5 +1,8 @@
+from random import randint
+
 import numpy as np
 import torch
+from imutils import rotate
 from skimage.transform.pyramids import pyramid_gaussian
 from skimage.transform import rescale, resize
 from torch.nn.functional import fold, unfold
@@ -7,7 +10,7 @@ from .utils import *
 
 
 class gpnn:
-	def __init__(self, config, hflip=False):
+	def __init__(self, config, hflip=False, rotation=True):
 		# general settings
 		self.T = config['iters']
 		self.PATCH_SIZE = (config['patch_size'], config['patch_size'])
@@ -56,8 +59,8 @@ class gpnn:
 		pyramid_depth = int(np.ceil(pyramid_depth))
 		self.x_pyramid = list(
 			tuple(pyramid_gaussian(self.input_img, pyramid_depth, downscale=self.R, multichannel=True)))
-		# if self.add_base_level is True:
-		# 	self.x_pyramid[-1] = resize(self.x_pyramid[-2], self.COARSE_DIM)
+		if self.add_base_level is True:
+			self.x_pyramid[-1] = resize(self.x_pyramid[-2], self.COARSE_DIM)
 		self.y_pyramid = [0] * (pyramid_depth + 1)
 
 		# out_file
@@ -68,6 +71,9 @@ class gpnn:
 		if config['task'] == 'random_sample':
 			noise = np.random.normal(0, config['sigma'], self.x_pyramid[-1].shape[:2])[..., np.newaxis]
 			self.coarse_img = self.x_pyramid[-1] + noise
+			if rotation:
+				random_angle_for_rotation = randint(45, 180)
+				self.coarse_img = rotate(self.coarse_img, random_angle_for_rotation)
 		elif config['task'] == 'structural_analogies':
 			self.coarse_img = img_read(config['img_b'])
 			self.coarse_img = resize(self.coarse_img, self.x_pyramid[-1].shape)
